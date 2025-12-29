@@ -7,10 +7,8 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; text-align: center; background-color: #f4f7f6; margin: 0; padding: 10px; }
         .container { max-width: 500px; margin: auto; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
-        /* 計時條樣式 */
         #timer-bar-container { width: 100%; height: 8px; background: #eee; position: absolute; top: 0; left: 0; }
         #timer-bar { width: 100%; height: 100%; background: #3498db; transition: width 1s linear; }
-        
         #word-display { font-size: 2.2em; letter-spacing: 0.2em; margin: 20px 0; color: #3498db; font-weight: bold; min-height: 1.5em; }
         #hangman-drawing { font-family: monospace; white-space: pre; background: #333; color: #2ecc71; padding: 15px; border-radius: 10px; margin-bottom: 15px; font-size: 14px; display: inline-block; line-height: 1.2; }
         .btn { padding: 12px 25px; font-size: 16px; cursor: pointer; border: none; border-radius: 10px; background: #2ecc71; color: white; transition: 0.2s; }
@@ -21,7 +19,6 @@
         .modal-content { background: white; padding: 30px; border-radius: 20px; width: 85%; max-width: 400px; }
         #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #3498db; display: flex; align-items: center; justify-content: center; z-index: 2000; color: white; }
         .info-bar { background: #fdfdfd; padding: 12px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; font-weight: bold; }
-        .msg-box { height: 30px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -44,15 +41,13 @@
     </div>
     
     <div id="hangman-drawing">  +---+ ... </div>
-
-    <div id="hint-display" style="background: #fff9db; padding: 15px; border-radius: 10px; text-align: left; margin-bottom: 20px;">Loading...</div>
+    <div id="hint-display" style="background: #fff9db; padding: 15px; border-radius: 10px; text-align: left; margin-bottom: 20px;">Ready?</div>
     <div id="word-display">_ _ _ _ _</div>
     <div id="status" style="font-size: 1.2em; margin-bottom: 10px;">Lives: ❤️❤️❤️❤️❤️❤️</div>
-    <div id="game-msg" class="msg-box"></div>
-
+    <div id="game-msg" style="height: 30px; font-weight: bold;"></div>
     <div id="keyboard"></div>
-    <div id="action-area" style="margin-top: 25px;">
-        <button class="btn" onclick="skipQuestion()" style="background: #e67e22;">Skip Question (-1 ❤️)</button>
+    <div style="margin-top: 25px;">
+        <button class="btn" onclick="skipQuestion()" style="background: #e67e22;">Skip (-1 ❤️)</button>
     </div>
 </div>
 
@@ -66,9 +61,7 @@
 </div>
 
 <script>
-    let currentWord = "", guessedLetters = [], lives = 6, totalScore = 0, isGameOver = false;
-    let timeLeft = 30, timerId = null;
-
+    let currentWord = "", guessedLetters = [], lives = 6, totalScore = 0, isGameOver = false, timeLeft = 30, timerId = null;
     const stages = [
         `  +---+\n  |   |\n  O   |\n /|\\  |\n / \\  |\n      |\n=========`,
         `  +---+\n  |   |\n  O   |\n /|\\  |\n /    |\n      |\n=========`,
@@ -80,47 +73,16 @@
     ];
 
     async function login() {
-        const name = document.getElementById('player-name-input').value;
-        if (!name) return alert("Enter name!");
+        const name = document.getElementById('player-name-input').value || "Explorer";
         await fetch('/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name: name}) });
         document.getElementById('display-name').innerText = name;
         document.getElementById('login-overlay').style.display = 'none';
         startNewRound();
     }
 
-    function startTimer() {
-        clearInterval(timerId);
-        timeLeft = 30;
-        updateTimerUI();
-        timerId = setInterval(() => {
-            timeLeft--;
-            updateTimerUI();
-            if (timeLeft <= 0) {
-                clearInterval(timerId);
-                handleTimeOut();
-            }
-        }, 1000);
-    }
-
-    function updateTimerUI() {
-        document.getElementById('timer-text').innerText = timeLeft;
-        document.getElementById('timer-bar').style.width = (timeLeft / 30 * 100) + "%";
-        // 時間快到時變色
-        document.getElementById('timer-bar').style.background = timeLeft < 10 ? "#e74c3c" : "#3498db";
-    }
-
-    function handleTimeOut() {
-        if (isGameOver) return;
-        lives--;
-        document.getElementById('game-msg').style.color = "#e67e22";
-        document.getElementById('game-msg').innerText = "Time's up! -1 Life";
-        if (lives <= 0) updateUI();
-        else startNewRound();
-    }
-
     async function startNewRound() {
         if (isGameOver) return;
-        const res = await fetch('/get_word');
+        const res = await fetch('/get_word'); // 指向修正後的雙路由
         const data = await res.json();
         currentWord = data.word;
         document.getElementById('hint-display').innerHTML = "💡 " + data.hint;
@@ -131,16 +93,35 @@
         startTimer();
     }
 
+    function startTimer() {
+        clearInterval(timerId);
+        timeLeft = 30;
+        updateTimerUI();
+        timerId = setInterval(() => {
+            timeLeft--;
+            updateTimerUI();
+            if (timeLeft <= 0) { clearInterval(timerId); handleTimeOut(); }
+        }, 1000);
+    }
+
+    function updateTimerUI() {
+        document.getElementById('timer-text').innerText = timeLeft;
+        document.getElementById('timer-bar').style.width = (timeLeft / 30 * 100) + "%";
+        document.getElementById('timer-bar').style.background = timeLeft < 10 ? "#e74c3c" : "#3498db";
+    }
+
+    function handleTimeOut() {
+        lives--;
+        if (lives <= 0) updateUI(); else startNewRound();
+    }
+
     function createKeyboard() {
-        const kb = document.getElementById('keyboard');
-        kb.innerHTML = "";
+        const kb = document.getElementById('keyboard'); kb.innerHTML = "";
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(l => {
-            const div = document.createElement('div');
-            div.innerText = l; div.className = "key";
+            const div = document.createElement('div'); div.innerText = l; div.className = "key";
             div.onclick = () => {
                 if (guessedLetters.includes(l) || isGameOver) return;
-                guessedLetters.push(l);
-                div.className = "key used";
+                guessedLetters.push(l); div.className = "key used";
                 if (!currentWord.includes(l)) lives--;
                 updateUI();
             };
@@ -148,12 +129,7 @@
         });
     }
 
-    function skipQuestion() {
-        if (isGameOver) return;
-        lives--;
-        if (lives <= 0) updateUI();
-        else startNewRound();
-    }
+    function skipQuestion() { lives--; if (lives <= 0) updateUI(); else startNewRound(); }
 
     function updateUI() {
         let display = "";
@@ -166,25 +142,16 @@
         document.getElementById('hangman-drawing').innerText = stages[lives] || stages[0];
 
         if (!display.includes("_") && currentWord !== "" && !isGameOver) {
-            clearInterval(timerId); // 答對時停止計時
-            totalScore += 10;
+            clearInterval(timerId); totalScore += 10;
             document.getElementById('display-score').innerText = totalScore;
-            document.getElementById('game-msg').style.color = "#2ecc71";
-            document.getElementById('game-msg').innerText = "Correct! +10 Points";
             setTimeout(startNewRound, 1000);
-        } else if (lives <= 0) {
-            gameOver();
-        }
+        } else if (lives <= 0) { gameOver(); }
     }
 
     function gameOver() {
-        isGameOver = true;
-        clearInterval(timerId);
+        isGameOver = true; clearInterval(timerId);
         document.getElementById('word-display').innerHTML = `<span style="color:#e74c3c">${currentWord}</span>`;
-        document.getElementById('game-msg').style.color = "#e74c3c";
-        document.getElementById('game-msg').innerText = "Survival Over!";
-        document.getElementById('keyboard').innerHTML = "";
-        document.getElementById('action-area').innerHTML = `<button class="btn" onclick="showLeaderboard()" style="background:#3498db">View Leaderboard</button>`;
+        document.getElementById('keyboard').innerHTML = `<button class="btn" onclick="showLeaderboard()" style="background:#3498db; width:100%">View Leaderboard</button>`;
     }
 
     async function showLeaderboard() {
