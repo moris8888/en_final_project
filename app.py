@@ -80,4 +80,8 @@ def update_score():
     return jsonify({"status": "success", "leaderboard": lb})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # 這是為了確保抓到 Render 分配的 Port
+    port = int(os.environ.get("PORT", 5000))
+    # host 設為 0.0.0.0 才能接收外部流量
+    app.run(host='0.0.0.0', port=port)
+
